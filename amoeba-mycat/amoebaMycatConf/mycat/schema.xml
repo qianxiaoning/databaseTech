@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!DOCTYPE mycat:schema SYSTEM "schema.dtd">
+<mycat:schema xmlns:mycat="http://io.mycat/">
+	
+	<!--name属性是自定义的  dataNode表示数据库的节点信息-->
+	<schema name="a" checkSQLschema="false" sqlMaxLimit="100" dataNode="a"/>
+
+	<!--定义节点名称/节点主机/数据名称-->
+	<dataNode name="a" dataHost="localhost1" database="a" />
+		<!--参数介绍-->
+		<!--balance 0表示所有的读操作都会发往writeHost主机 -->  
+		<!--1表示所有的读操作发往readHost和闲置的主节点中-->
+		<!--writeType=0 所有的写操作都发往第一个writeHost主机-->	
+		<!--writeType=1 所有的写操作随机发往writeHost中-->
+		<!--dbType 表示数据库类型 mysql/oracle-->
+		<!--dbDriver="native"  固定参数 不变-->
+		<!--switchType=-1 表示不自动切换, 主机宕机后不会自动切换从节点-->
+		<!--switchType=1  表示会自动切换(默认值)如果第一个主节点宕机后,Mycat会进行3次心跳检测,如果3次都没有响应,则会自动切换到第二个主节点-->
+		<!--并且会更新/conf/dnindex.properties文件的主节点信息 localhost1=0 表示第一个节点.该文件不要随意修改否则会出现大问题-->
+	<dataHost name="localhost1" maxCon="1000" minCon="10" balance="1"
+			  writeType="0" dbType="mysql" dbDriver="native" switchType="1"  slaveThreshold="100">
+		<heartbeat>select 1</heartbeat>
+
+		<!--配置第一台主机主要进行写库操作,在默认的条件下Mycat主要操作第一台主机在第一台主机中已经实现了读写分离.因为默认写操作会发往137的数据库.读的操作默认发往141.如果从节点比较忙,则主节点分担部分压力.
+		-->
+		<writeHost host="hostM1" url="192.168.89.130:3306" user="root" password="root">
+			<!--读数据库-->
+			<readHost host="hostS1" url="192.168.89.131:3306" user="root" password="root" />
+			
+		</writeHost>
+
+			<!--定义第二台主机 由于数据库内部已经实现了双机热备.-->
+			<!--Mycat实现高可用.当第一个主机137宕机后.mycat会自动发出心跳检测.检测3次.-->
+			<!--如果主机137没有给Mycat响应则判断主机死亡.则回启东第二台主机继续为用户提供服务.-->
+			<!--如果137主机恢复之后则处于等待状态.如果141宕机则137再次持续为用户提供服务.-->
+			<!--前提:实现双机热备.-->
+		
+		<writeHost host="hostM2" url="192.168.89.131:3306" user="root" password="root">
+			<readHost host="hostS1" url="192.168.89.130:3306" user="root" password="root" />
+		</writeHost>
+	</dataHost>
+</mycat:schema>
